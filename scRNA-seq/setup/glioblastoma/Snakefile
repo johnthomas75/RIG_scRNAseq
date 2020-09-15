@@ -10,7 +10,7 @@ rule all:
         os.path.join(basedir, "qc_reports/fastqc/fastqc_report_all.csv"),
         os.path.join(basedir, "tximport/count_matrix.tsv"),
         os.path.join(basedir, "darmanis_metadata.tsv")
-        
+
 rule metadata:
     output:
         "{base}/darmanis_metadata.tsv"
@@ -20,7 +20,7 @@ rule metadata:
         "Rscript get_geo_metadata.R"
         " --geo {params.gse}"
         " --outfile {output}"
-    
+
 
 checkpoint sample_list:
     # create the sample list for the given SRP accession
@@ -36,7 +36,7 @@ checkpoint sample_list:
 
 rule get_fastqs:
     # download fastqc files for a particular run
-    input: 
+    input:
         "{base}/sample_list.csv"
     output:
         # make these temporary to save space
@@ -44,7 +44,7 @@ rule get_fastqs:
         R2 = temp("{base}/fastq/{run_id}/{run_id}_2.fastq.gz")
     run:
         sample_df = pd.read_csv(input[0])
-        # filter sample table to the sample required 
+        # filter sample table to the sample required
         # to create a given output file (defined by run_id)
         samples = sample_df[sample_df['run_accession'] == wildcards.run_id]
         # create urls and fetch
@@ -52,6 +52,8 @@ rule get_fastqs:
         shell(f"wget {urls} -P {wildcards.base}/fastq/{wildcards.run_id} -q")
 
 rule fastp:
+    # trim fastq files
+    priority: 5
     input:
         R1 = "{base}/fastq/{run_id}/{run_id}_1.fastq.gz",
         R2 = "{base}/fastq/{run_id}/{run_id}_2.fastq.gz"
@@ -60,7 +62,7 @@ rule fastp:
         R2 = temp("{base}/fastq-trimmed/{run_id}/{run_id}_2.fastq.gz"),
         json = "{base}/qc_reports/fastp/{run_id}_fastp.json",
         html = "{base}/qc_reports/fastp/{run_id}_fastp.html"
-    threads: 4
+    threads: 1
     shell:
         "fastp -i {input.R1} -I {input.R2}"
         " -o {output.R1} -O {output.R2}"
@@ -73,6 +75,7 @@ rule fastp:
 
 rule fastqc:
     # run fastqc
+    priority: 5
     input:
         "{base}/fastq-trimmed/{run}/{sample}.fastq.gz"
     output:
@@ -88,11 +91,11 @@ def aggregate_fastqc(wildcards):
         sample_df = pd.read_csv(f)
     # get the run and fastq filename from the last two elements of the ftp field
     run_fastq = [f.split("/")[-2:] for f in sample_df['fastq_ftp']]
-    # swap the fastq extension to make the fastqc file name and join back to partial paths 
+    # swap the fastq extension to make the fastqc file name and join back to partial paths
     qc_paths = [os.path.join(run, fastq.replace('.fastq.gz', '_fastqc.html') )
                 for run, fastq in run_fastq]
     # create the full paths
-    qc_fullpaths = [os.path.join(wildcards.base, "qc_reports", "fastqc", qc) 
+    qc_fullpaths = [os.path.join(wildcards.base, "qc_reports", "fastqc", qc)
                     for qc in qc_paths]
     return(qc_fullpaths)
 
@@ -114,16 +117,17 @@ rule fastqc_summary:
 
 rule salmon_quant:
     # run salmon quantification
+    priority: 10
     input:
         index = config['salmon_index'],
         R1 = "{base}/fastq-trimmed/{run_id}/{run_id}_1.fastq.gz",
         R2 = "{base}/fastq-trimmed/{run_id}/{run_id}_2.fastq.gz"
     output:
-        dir = directory("{base}/salmon_quant/{run_id}"), 
+        dir = directory("{base}/salmon_quant/{run_id}"),
         quant_file = "{base}/salmon_quant/{run_id}/quant.sf"
     threads: 4
     shell:
-        "salmon quant" 
+        "salmon quant"
         " -i {input.index}"
         " -l A"
         " -1 {input.R1}"
@@ -159,7 +163,7 @@ rule salmon_matrix:
         txi_obj = "{base}/tximport/tximport_obj.RDS"
     params:
         quant_dir = "{base}/salmon_quant/",
-        sample_id = "sample_alias", # this is the GEO id for each sample 
+        sample_id = "sample_alias", # this is the GEO id for each sample
         map_cutoff = 0.3
     shell:
         "Rscript make_count_matrix.R"
