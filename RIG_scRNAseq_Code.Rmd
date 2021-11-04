@@ -3,7 +3,15 @@ title: "RIG_scRNAseq"
 output: html_notebook
 ---
 
-```{r}
-sessionInfo()
-```
+```{r - Importing Seurat for use with Alevin}
+# Seurat v3.0.0 and tximport >=1.13.10
+library(Seurat)
+library(tximport)
 
+# path to the output directory of Alevin run of pbmc_1k 10x V2 data
+files <- file.path("alevin_quants/alevin/quants_mat.gz")
+file.exists(files)
+
+
+
+```
