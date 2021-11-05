@@ -1,6 +1,8 @@
 ---
 title: "RIG_scRNAseq"
-output: html_notebook
+output:
+  pdf_document: default
+  html_notebook: default
 ---
 
 ```{r - Importing Seurat for use with Alevin}
@@ -71,7 +73,7 @@ CellScatter(cluster.averages, cell1 = "0", cell2 = "1")
 
 ```{r}
 # How can I calculate expression averages separately for each replicate?
-cluster.averages <- AverageExpression(pbmc, return.seurat = TRUE, add.ident = "replicate")
-CellScatter(cluster.averages, cell1 = "cluster 1_rep1", cell2 = "cluster 1_rep2")
+#cluster.averages <- AverageExpression(pbmc, return.seurat = TRUE, add.ident = "replicate")
+#CellScatter(cluster.averages, cell1 = "cluster 1_rep1", cell2 = "cluster 1_rep2")
 ```
 
