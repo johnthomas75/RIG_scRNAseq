@@ -6,12 +6,72 @@ output: html_notebook
 ```{r - Importing Seurat for use with Alevin}
 # Seurat v3.0.0 and tximport >=1.13.10
 library(Seurat)
-library(tximport)
+pbmc <- readRDS(file = "Z:/ResearchHome/ProjectSpace/lucasgrp/HGG_radiation/common/scRNAseq/201110_RIGs_regressed_S_vs_G2M_sctrans_harmony_res_0_pt_8.rds")
 
-# path to the output directory of Alevin run of pbmc_1k 10x V2 data
-files <- file.path("alevin_quants/alevin/quants_mat.gz")
-file.exists(files)
-
-
+set.seed(42)
+pbmc$replicate <- sample(c("rep1", "rep2"), size = ncol(pbmc), replace = TRUE)
 
 ```
+
+```{r}
+# Plot UMAP, coloring cells by cell type (currently stored in object@ident)
+DimPlot(pbmc, reduction = "umap")
+```
+
+```{r}
+# How many cells are in each cluster
+table(Idents(pbmc))
+
+# How many cells are in each replicate?
+table(pbmc$replicate)
+
+# What proportion of cells are in each cluster?
+prop.table(table(Idents(pbmc)))
+
+# How does cluster membership vary by replicate?
+table(Idents(pbmc), pbmc$replicate)
+prop.table(table(Idents(pbmc), pbmc$replicate), margin = 2)
+```
+
+```{r}
+# How can I extract expression matrix for all NK cells (perhaps, to load into another package)
+zero.raw.data <- as.matrix(GetAssayData(pbmc, slot = "counts")[, WhichCells(pbmc, ident = "0")])
+
+# Can I create a Seurat object based on expression of a feature or value (MS4A1) in object metadata?
+subset(pbmc, subset = MS4A1 > 1)
+```
+
+```{r}
+# Can I create a Seurat object based on replicate in object metadata?
+subset(pbmc, subset = replicate == "rep2")
+```
+
+```{r}
+# How can I calculate the average expression of all cells within a cluster?
+cluster.averages <- AverageExpression(pbmc)
+head(cluster.averages[["RNA"]][, 1:5])
+```
+
+```{r}
+# Return this information as a Seurat object (enables downstream plotting and analysis) First,
+# replace spaces with underscores '_' so ggplot2 doesn't fail
+orig.levels <- levels(pbmc)
+Idents(pbmc) <- gsub(pattern = " ", replacement = "_", x = Idents(pbmc))
+orig.levels <- gsub(pattern = " ", replacement = "_", x = orig.levels)
+levels(pbmc) <- orig.levels
+cluster.averages <- AverageExpression(pbmc, return.seurat = TRUE)
+cluster.averages
+```
+
+```{r}
+# How can I plot the average expression of X cells vs. Y cells?  Pass do.hover = T for an
+# interactive plot to identify gene outliers
+CellScatter(cluster.averages, cell1 = "0", cell2 = "1")
+```
+
+```{r}
+# How can I calculate expression averages separately for each replicate?
+cluster.averages <- AverageExpression(pbmc, return.seurat = TRUE, add.ident = "replicate")
+CellScatter(cluster.averages, cell1 = "cluster 1_rep1", cell2 = "cluster 1_rep2")
+```
+
